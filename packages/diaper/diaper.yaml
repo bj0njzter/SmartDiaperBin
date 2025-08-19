@@ -140,20 +140,20 @@ template:
         unique_id: diapers_per_day_last_3_completed_days_avg
         unit_of_measurement: diapers/day
         state: >
-          {% set raw = states('input_text.diaper_daily_last3') or '' %}
-          {% set arr = (raw.split('|') if raw else []) | map('int') | list %}
+          {% set raw = states('input_text.diaper_daily_last3') %}
+          {% set arr = [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) %}
           {% if arr | length == 0 %} 0
           {% else %} {{ (arr | sum / (arr | length)) | round(2) }} {% endif %}
 
       - name: Diaper Last 5 Times
         unique_id: diaper_last_5_times
         state: >
-          {% set raw = states('input_text.diaper_recent_times') or '' %}
-          {% if not raw %}0{% else %}{{ (raw.split('|') | count) }}{% endif %}
+          {% set raw = states('input_text.diaper_recent_times') %}
+          {% if raw in ['unknown','unavailable',''] %}0{% else %}{{ (raw.split('|') | count) }}{% endif %}
         attributes:
           recent: >
-            {% set raw = states('input_text.diaper_recent_times') or '' %}
-            {% set arr = raw.split('|') if raw else [] %}
+            {% set raw = states('input_text.diaper_recent_times') %}
+            {% set arr = [] if raw in ['unknown','unavailable',''] else raw.split('|') %}
             {{ arr }}
 
       - name: Diaper Days To Full
@@ -221,8 +221,8 @@ script:
     mode: single
     sequence:
       - variables:
-          raw: "{{ states('input_text.diaper_recent_times') or '' }}"
-          arr: "{{ (raw.split('|') if raw else []) }}"
+          raw: "{{ states('input_text.diaper_recent_times') }}"
+          arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
       - condition: template
         value_template: "{{ arr | length > 0 }}"
       - variables:
@@ -232,9 +232,11 @@ script:
           day_start: "{{ as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) }}"
           week_start: "{{ as_timestamp((now() - timedelta(days=now().weekday())).replace(hour=0, minute=0, second=0, microsecond=0)) }}"
           month_start: "{{ as_timestamp(now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)) }}"
+          bag_start: "{{ as_datetime(states('input_datetime.diaper_bag_started')) if states('input_datetime.diaper_bag_started') not in ['unknown','unavailable',''] else none }}"
           in_day: "{{ popped_dt is not none and as_timestamp(popped_dt) >= day_start }}"
           in_week: "{{ popped_dt is not none and as_timestamp(popped_dt) >= week_start }}"
           in_month: "{{ popped_dt is not none and as_timestamp(popped_dt) >= month_start }}"
+          in_bag: "{{ popped_dt is not none and bag_start is not none and as_timestamp(popped_dt) >= as_timestamp(bag_start) }}"
           popped_hour: "{{ (popped_dt.hour if popped_dt is not none else 0) }}"
           popped_bucket: >
             {% set h = popped_hour %}
@@ -243,14 +245,16 @@ script:
             {% elif 12 <= h < 18 %}Afternoon
             {% else %}Evening
             {% endif %}
-      - service: counter.decrement
-        target: { entity_id: counter.diaper_count }
-      - variables:
           bag_now: "{{ states('sensor.diaper_bag')|int(0) }}"
           bag_new: "{{ [bag_now - 1, 0] | max }}"
-      - service: utility_meter.calibrate
-        target: { entity_id: sensor.diaper_bag }
-        data: { value: "{{ bag_new }}" }
+      - service: counter.decrement
+        target: { entity_id: counter.diaper_count }
+      - choose:
+          - conditions: "{{ in_bag }}"
+            sequence:
+              - service: utility_meter.calibrate
+                target: { entity_id: sensor.diaper_bag }
+                data: { value: "{{ bag_new }}" }
       - choose:
           - conditions: "{{ in_day }}"
             sequence:
@@ -298,10 +302,16 @@ script:
               - service: input_datetime.set_datetime
                 target: { entity_id: input_datetime.last_diaper_time }
                 data: { datetime: "{{ as_timestamp(as_datetime(remaining[0])) | timestamp_local }}" }
+          - default:
+              - service: input_datetime.set_datetime
+                target: { entity_id: input_datetime.last_diaper_time }
+                data: { datetime: "1970-01-01 00:00:00" }
       - service: persistent_notification.create
         data:
           title: "Diaper - Undo Last"
-          message: "Undid last entry at {{ popped }}. New bag={{ bag_new }}."
+          message: >
+            Undid last entry at {{ popped }}.
+            {% if in_bag %}New bag={{ bag_new }}.{% else %}Entry belonged to previous bag; current bag={{ bag_now }}.{% endif %}
 
 # --- Automations ---
 automation:
@@ -333,8 +343,8 @@ automation:
         target: { entity_id: input_datetime.last_diaper_time }
         data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
       - variables:
-          raw: "{{ states('input_text.diaper_recent_times') or '' }}"
-          arr: "{{ (raw.split('|') if raw else []) }}"
+          raw: "{{ states('input_text.diaper_recent_times') }}"
+          arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
           updated: >
             {% set new = [now_iso] + arr %}
             {% set trimmed = new[:5] %}
@@ -403,8 +413,8 @@ automation:
     action:
       - variables:
           yest: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
-          raw: "{{ states('input_text.diaper_daily_last3') or '' }}"
-          arr: "{{ (raw.split('|') if raw else []) | map('int') | list }}"
+          raw: "{{ states('input_text.diaper_daily_last3') }}"
+          arr: "{{ [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) }}"
           updated: >
             {% set new = [yest] + arr %}
             {% set trimmed = new[:3] %}
