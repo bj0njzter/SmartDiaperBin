@@ -1,0 +1,56 @@
+blueprint:
+  name: Diaper Tracker – Count on Close
+  description: Increment counter, stamp time, set ToD tariff, keep a last-5 list when the bin closes.
+  domain: automation
+  input:
+    contact_sensor:
+      name: Contact sensor (bin lid)
+      selector: { entity: { domain: binary_sensor } }
+    lifetime_counter:
+      name: Lifetime counter
+      selector: { entity: { domain: counter } }
+    last_time:
+      name: Last diaper time (input_datetime)
+      selector: { entity: { domain: input_datetime } }
+    tod_select:
+      name: Time-of-day select (utility meter tariff)
+      selector: { entity: { domain: select } }
+    recent_times:
+      name: Last-5 input_text
+      selector: { entity: { domain: input_text } }
+
+mode: single
+trigger:
+  - platform: state
+    entity_id: !input contact_sensor
+condition:
+  - condition: template
+    value_template: "{{ trigger.to_state is not none and trigger.to_state.state in ['off','closed'] }}"
+action:
+  - variables:
+      now_iso: "{{ now().isoformat() }}"
+      bucket: >
+        {% set h = now().hour %}
+        {% if 0 <= h < 6 %}Night
+        {% elif 6 <= h < 12 %}Morning
+        {% elif 12 <= h < 18 %}Afternoon
+        {% else %}Evening
+        {% endif %}
+  - service: select.select_option
+    target: { entity_id: !input tod_select }
+    data: { option: "{{ bucket }}" }
+  - service: counter.increment
+    target: { entity_id: !input lifetime_counter }
+  - service: input_datetime.set_datetime
+    target: { entity_id: !input last_time }
+    data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
+  - variables:
+      raw: "{{ states('!input recent_times') or '' }}"
+      arr: "{{ (raw.split('|') if raw else []) }}"
+      updated: >
+        {% set new = [now_iso] + arr %}
+        {% set trimmed = new[:5] %}
+        {{ trimmed | join('|') }}
+  - service: input_text.set_value
+    target: { entity_id: !input recent_times }
+    data: { value: "{{ updated }}" }

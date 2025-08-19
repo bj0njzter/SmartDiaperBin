@@ -1,0 +1,85 @@
+title: Diapers
+views:
+  - title: Diapers
+    path: diapers
+    icon: mdi:trash-can
+    cards:
+      - type: gauge
+        name: Fill Level
+        entity: sensor.diaper_fill_percent
+        min: 0
+        max: 100
+        severity: { green: 0, yellow: 70, red: 90 }
+
+      - type: entities
+        title: Now
+        show_header_toggle: false
+        entities:
+          - entity: sensor.diaper_bag_used
+            name: In bag (current)
+          - entity: sensor.diaper_bag_remaining
+            name: Remaining in bag
+          - entity: input_number.diaper_bag_capacity
+            name: Capacity (pcs)
+          - entity: input_datetime.last_diaper_time
+            name: Last registered
+          - entity: sensor.diapers_per_day_last_3_completed_days_avg
+            name: Per day avg (last 3 full days)
+          - entity: sensor.diaper_next_full_eta
+            name: Full ETA
+          - entity: input_button.diaper_bag_taken_out
+            name: Empty bag (button)
+          - entity: input_boolean.diaper_auto_calibrate_capacity
+            name: Auto-calibrate capacity
+
+      - type: entities
+        title: Totals
+        show_header_toggle: false
+        entities:
+          - entity: sensor.diaper_daily
+            name: Today
+          - entity: sensor.diapers_yesterday
+            name: Yesterday
+          - entity: sensor.diaper_weekly
+            name: This week
+          - entity: sensor.diaper_monthly
+            name: This month
+          - entity: counter.diaper_count
+            name: Lifetime total
+
+      - type: entities
+        title: Time-of-day (this month)
+        show_header_toggle: false
+        entities:
+          - entity: sensor.diaper_tod_night
+            name: Night
+          - entity: sensor.diaper_tod_morning
+            name: Morning
+          - entity: sensor.diaper_tod_afternoon
+            name: Afternoon
+          - entity: sensor.diaper_tod_evening
+            name: Evening
+
+      - type: statistics-graph
+        title: Diapers per day (30 days)
+        days_to_show: 30
+        chart_type: bar
+        stat_types: [ max ]
+        entities:
+          - sensor.diaper_daily
+
+      - type: markdown
+        title: Last 5 diapers
+        content: |
+          {% set raw = states('input_text.diaper_recent_times') or '' %}
+          {% set arr = raw.split('|') if raw else [] %}
+
+          | # | Timestamp |
+          | -:| --- |
+          {% for t in arr if t not in ['', 'unknown', 'unavailable', None] %}
+          | {{ loop.index }} | {{ as_datetime(t).astimezone().strftime('%Y-%m-%d %H:%M') }} |
+          {% endfor %}
+
+          {% if not arr %}
+          _No registrations yet — close the lid to add one._
+          {% endif %}

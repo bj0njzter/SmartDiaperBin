@@ -1,0 +1,414 @@
+# =========================
+# Diaper tracking package (shareable, robust)
+# =========================
+
+# --- Helpers / Inputs ---
+input_number:
+  diaper_bag_capacity:
+    name: Diaper Bag Capacity
+    min: 5
+    max: 100
+    step: 1
+    unit_of_measurement: diapers
+    initial: 22
+    icon: mdi:trash-can
+    mode: box
+
+  diaper_full_threshold:
+    name: Diaper Bin Full Threshold
+    min: 50
+    max: 100
+    step: 5
+    unit_of_measurement: "%"
+    initial: 90
+    icon: mdi:percent
+
+  diaper_alert_cooldown_hours:
+    name: Diaper Alert Cooldown (hours)
+    min: 1
+    max: 48
+    step: 1
+    initial: 12
+    icon: mdi:alarm
+
+input_boolean:
+  diaper_auto_calibrate_capacity:
+    name: Auto-calibrate capacity on empty
+    icon: mdi:scale-balance
+    initial: true
+
+input_button:
+  diaper_bag_taken_out:
+    name: Diaper Bag Taken Out
+    icon: mdi:trash-can-outline
+
+input_text:
+  diaper_recent_times:
+    name: Diaper Recent Times (last 5 ISO)
+    max: 255
+  diaper_daily_last3:
+    name: Diaper Daily Last 3 (completed days)
+    max: 64
+
+input_datetime:
+  last_diaper_time:
+    name: Last Diaper Time
+    has_date: true
+    has_time: true
+  diaper_last_alert:
+    name: Diaper Last Alert
+    has_date: true
+    has_time: true
+  diaper_bag_started:
+    name: Diaper Bag Started
+    has_date: true
+    has_time: true
+  diaper_bag_started_prev:
+    name: Diaper Bag Started (previous)
+    has_date: true
+    has_time: true
+
+counter:
+  diaper_count:
+    name: Diaper Count (lifetime)
+    step: 1
+    restore: true
+
+# --- Utility meters (period counters driven by lifetime total) ---
+utility_meter:
+  diaper_daily:
+    source: sensor.diaper_total
+    cycle: daily
+  diaper_weekly:
+    source: sensor.diaper_total
+    cycle: weekly
+  diaper_monthly:
+    source: sensor.diaper_total
+    cycle: monthly
+  diaper_bag:
+    source: sensor.diaper_total
+    cycle: yearly      # reset when bag is emptied
+  diaper_tod:
+    source: sensor.diaper_total
+    cycle: monthly
+    tariffs:
+      - Night
+      - Morning
+      - Afternoon
+      - Evening
+
+# --- Template sensors (math + projections + summaries) ---
+template:
+  - sensor:
+      - name: Diaper Total
+        unique_id: diaper_total
+        unit_of_measurement: diapers
+        state_class: total_increasing
+        state: "{{ states('counter.diaper_count') | int(0) }}"
+
+      - name: Diaper Bag Used
+        unique_id: diaper_bag_used
+        unit_of_measurement: diapers
+        state: >
+          {% set v = states('sensor.diaper_bag') %}
+          {% if v in ['unknown','unavailable',''] %} 0 {% else %} {{ v|int(0) }} {% endif %}
+
+      - name: Diaper Bag Remaining
+        unique_id: diaper_bag_remaining
+        unit_of_measurement: diapers
+        state: >
+          {% set cap = states('input_number.diaper_bag_capacity')|int(22) %}
+          {% set used = states('sensor.diaper_bag_used')|int(0) %}
+          {{ [cap - used, 0]|max }}
+
+      - name: Diaper Fill Percent
+        unique_id: diaper_fill_percent
+        unit_of_measurement: "%"
+        icon: mdi:percent
+        state: >
+          {% set cap = states('input_number.diaper_bag_capacity')|float(1) %}
+          {% set used = states('sensor.diaper_bag_used')|float(0) %}
+          {% if cap > 0 %} {{ ([ (used / cap) * 100, 100 ] | min) | round(1) }} {% else %} 0 {% endif %}
+
+      - name: Diapers Yesterday
+        unique_id: diapers_yesterday
+        unit_of_measurement: diapers
+        state_class: measurement
+        state: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
+
+      - name: Diapers per Day (Last 3 Completed Days Avg)
+        unique_id: diapers_per_day_last_3_completed_days_avg
+        unit_of_measurement: diapers/day
+        state: >
+          {% set raw = states('input_text.diaper_daily_last3') or '' %}
+          {% set arr = (raw.split('|') if raw else []) | map('int') | list %}
+          {% if arr | length == 0 %} 0
+          {% else %} {{ (arr | sum / (arr | length)) | round(2) }} {% endif %}
+
+      - name: Diaper Last 5 Times
+        unique_id: diaper_last_5_times
+        state: >
+          {% set raw = states('input_text.diaper_recent_times') or '' %}
+          {% if not raw %}0{% else %}{{ (raw.split('|') | count) }}{% endif %}
+        attributes:
+          recent: >
+            {% set raw = states('input_text.diaper_recent_times') or '' %}
+            {% set arr = raw.split('|') if raw else [] %}
+            {{ arr }}
+
+      - name: Diaper Days To Full
+        unique_id: diaper_days_to_full
+        unit_of_measurement: d
+        icon: mdi:calendar-clock
+        state: >
+          {% set rate = states('sensor.diapers_per_day_last_3_completed_days_avg')|float(0) %}
+          {% if rate == 0 %} unknown
+          {% else %}
+            {% set remain = states('sensor.diaper_bag_remaining')|float(0) %}
+            {{ (remain / rate) | round(2) }}
+          {% endif %}
+
+      - name: Diaper Next Full ETA
+        unique_id: diaper_next_full_eta
+        device_class: timestamp
+        icon: mdi:clock-alert
+        state: >
+          {% set days = states('sensor.diaper_days_to_full')|float(0) %}
+          {% if days > 0 %} {{ (now() + timedelta(days=days)).isoformat() }} {% else %} unknown {% endif %}
+
+# --- Scripts ---
+script:
+  diaper_clean_slate_now:
+    alias: Diaper - Clean Slate (now)
+    mode: single
+    sequence:
+      - service: utility_meter.reset
+        target:
+          entity_id:
+            - sensor.diaper_bag
+            - sensor.diaper_daily
+            - sensor.diaper_weekly
+            - sensor.diaper_monthly
+            - sensor.diaper_tod
+      - service: counter.reset
+        target:
+          entity_id: counter.diaper_count
+      - service: recorder.purge_entities
+        data:
+          entity_globs:
+            - sensor.diaper_*
+            - counter.diaper_count
+          keep_days: 0
+          repack: true
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_recent_times }
+        data: { value: "" }
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_daily_last3 }
+        data: { value: "" }
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.diaper_bag_started_prev }
+        data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.diaper_bag_started }
+        data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.diaper_last_alert }
+        data: { datetime: "1970-01-01 00:00:00" }
+
+  diaper_undo_last:
+    alias: Diaper - Undo Last
+    mode: single
+    sequence:
+      - variables:
+          raw: "{{ states('input_text.diaper_recent_times') or '' }}"
+          arr: "{{ (raw.split('|') if raw else []) }}"
+      - condition: template
+        value_template: "{{ arr | length > 0 }}"
+      - variables:
+          popped: "{{ arr[0] }}"
+          remaining: "{{ arr[1:] }}"
+          popped_dt: "{{ as_datetime(popped) if popped not in ['', 'unknown', 'unavailable'] else none }}"
+          day_start: "{{ as_timestamp(now().replace(hour=0, minute=0, second=0, microsecond=0)) }}"
+          week_start: "{{ as_timestamp((now() - timedelta(days=now().weekday())).replace(hour=0, minute=0, second=0, microsecond=0)) }}"
+          month_start: "{{ as_timestamp(now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)) }}"
+          in_day: "{{ popped_dt is not none and as_timestamp(popped_dt) >= day_start }}"
+          in_week: "{{ popped_dt is not none and as_timestamp(popped_dt) >= week_start }}"
+          in_month: "{{ popped_dt is not none and as_timestamp(popped_dt) >= month_start }}"
+          popped_hour: "{{ (popped_dt.hour if popped_dt is not none else 0) }}"
+          popped_bucket: >
+            {% set h = popped_hour %}
+            {% if 0 <= h < 6 %}Night
+            {% elif 6 <= h < 12 %}Morning
+            {% elif 12 <= h < 18 %}Afternoon
+            {% else %}Evening
+            {% endif %}
+      - service: counter.decrement
+        target: { entity_id: counter.diaper_count }
+      - variables:
+          bag_now: "{{ states('sensor.diaper_bag')|int(0) }}"
+          bag_new: "{{ [bag_now - 1, 0] | max }}"
+      - service: utility_meter.calibrate
+        target: { entity_id: sensor.diaper_bag }
+        data: { value: "{{ bag_new }}" }
+      - choose:
+          - conditions: "{{ in_day }}"
+            sequence:
+              - variables:
+                  d_now: "{{ states('sensor.diaper_daily')|int(0) }}"
+                  d_new: "{{ [d_now - 1, 0] | max }}"
+              - service: utility_meter.calibrate
+                target: { entity_id: sensor.diaper_daily }
+                data: { value: "{{ d_new }}" }
+      - choose:
+          - conditions: "{{ in_week }}"
+            sequence:
+              - variables:
+                  w_now: "{{ states('sensor.diaper_weekly')|int(0) }}"
+                  w_new: "{{ [w_now - 1, 0] | max }}"
+              - service: utility_meter.calibrate
+                target: { entity_id: sensor.diaper_weekly }
+                data: { value: "{{ w_new }}" }
+      - choose:
+          - conditions: "{{ in_month }}"
+            sequence:
+              - variables:
+                  m_now: "{{ states('sensor.diaper_monthly')|int(0) }}"
+                  m_new: "{{ [m_now - 1, 0] | max }}"
+              - service: utility_meter.calibrate
+                target: { entity_id: sensor.diaper_monthly }
+                data: { value: "{{ m_new }}" }
+      - choose:
+          - conditions: "{{ in_month }}"
+            sequence:
+              - variables:
+                  t_now: "{{ states('sensor.diaper_tod_' ~ popped_bucket | lower) | int(0) }}"
+                  t_new: "{{ [t_now - 1, 0] | max }}"
+              - service: utility_meter.calibrate
+                target:
+                  entity_id: "sensor.diaper_tod_{{ popped_bucket | lower }}"
+                data:
+                  value: "{{ t_new }}"
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_recent_times }
+        data: { value: "{{ remaining | join('|') }}" }
+      - choose:
+          - conditions: "{{ remaining | length > 0 }}"
+            sequence:
+              - service: input_datetime.set_datetime
+                target: { entity_id: input_datetime.last_diaper_time }
+                data: { datetime: "{{ as_timestamp(as_datetime(remaining[0])) | timestamp_local }}" }
+      - service: persistent_notification.create
+        data:
+          title: "Diaper - Undo Last"
+          message: "Undid last entry at {{ popped }}. New bag={{ bag_new }}."
+
+# --- Automations ---
+automation:
+  - alias: Diaper - Count on Close (robust)
+    id: diaper_count_on_close_instant
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.bleiebotte_contact   # adjust to your sensor id
+    condition:
+      - condition: template
+        value_template: "{{ trigger.to_state is not none and trigger.to_state.state in ['off','closed'] }}"
+    action:
+      - variables:
+          now_iso: "{{ now().isoformat() }}"
+          bucket: >
+            {% set h = now().hour %}
+            {% if 0 <= h < 6 %}Night
+            {% elif 6 <= h < 12 %}Morning
+            {% elif 12 <= h < 18 %}Afternoon
+            {% else %}Evening
+            {% endif %}
+      - service: select.select_option
+        target: { entity_id: select.diaper_tod }
+        data: { option: "{{ bucket }}" }
+      - service: counter.increment
+        target: { entity_id: counter.diaper_count }
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.last_diaper_time }
+        data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
+      - variables:
+          raw: "{{ states('input_text.diaper_recent_times') or '' }}"
+          arr: "{{ (raw.split('|') if raw else []) }}"
+          updated: >
+            {% set new = [now_iso] + arr %}
+            {% set trimmed = new[:5] %}
+            {{ trimmed | join('|') }}
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_recent_times }
+        data: { value: "{{ updated }}" }
+      - service: logbook.log
+        data:
+          name: "Diaper disposed"
+          message: "Added {{ now_iso }}"
+          entity_id: input_text.diaper_recent_times
+
+  - alias: Diaper - Reset Bag Counter on Take-Out
+    id: diaper_reset_bag_counter_on_takeout
+    mode: single
+    trigger:
+      - platform: state
+        entity_id: input_button.diaper_bag_taken_out
+    action:
+      - variables:
+          prev_start: "{{ states('input_datetime.diaper_bag_started') }}"
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.diaper_bag_started_prev }
+        data:
+          datetime: >
+            {% if prev_start not in ['unknown','unavailable',''] %}
+              {{ prev_start }}
+            {% else %}
+              {{ now().timestamp() | timestamp_local }}
+            {% endif %}
+      - service: utility_meter.reset
+        target: { entity_id: sensor.diaper_bag }
+      - wait_template: "{{ state_attr('sensor.diaper_bag','last_period') is not none }}"
+        timeout: "00:00:05"
+      - variables:
+          finished_count: "{{ state_attr('sensor.diaper_bag','last_period') | int(0) }}"
+          manual_cap: "{{ states('input_number.diaper_bag_capacity') | int(0) }}"
+          auto_on: "{{ is_state('input_boolean.diaper_auto_calibrate_capacity','on') }}"
+          new_cap: >
+            {% if auto_on and finished_count > manual_cap %}
+              {{ finished_count }}
+            {% else %}
+              {{ manual_cap }}
+            {% endif %}
+      - choose:
+          - conditions: "{{ auto_on and (new_cap | int) > (manual_cap | int) }}"
+            sequence:
+              - service: input_number.set_value
+                target: { entity_id: input_number.diaper_bag_capacity }
+                data: { value: "{{ new_cap }}" }
+              - service: persistent_notification.create
+                data:
+                  title: "Diaper: Capacity auto-calibrated"
+                  message: "Increased capacity from {{ manual_cap }} to {{ new_cap }} based on last bag ({{ finished_count }})."
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.diaper_bag_started }
+        data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
+
+  - alias: Diaper - Roll Daily History (00:05)
+    id: diaper_roll_daily_history
+    mode: single
+    trigger:
+      - platform: time
+        at: "00:05:00"
+    action:
+      - variables:
+          yest: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
+          raw: "{{ states('input_text.diaper_daily_last3') or '' }}"
+          arr: "{{ (raw.split('|') if raw else []) | map('int') | list }}"
+          updated: >
+            {% set new = [yest] + arr %}
+            {% set trimmed = new[:3] %}
+            {{ trimmed | join('|') }}
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_daily_last3 }
+        data: { value: "{{ updated }}" }
