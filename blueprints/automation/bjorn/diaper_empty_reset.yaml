@@ -1,0 +1,39 @@
+blueprint:
+  name: Diaper Tracker – Empty Bag Reset
+  description: Save previous start, reset bag utility meter, set new start. (No TTS.)
+  domain: automation
+  input:
+    reset_button:
+      name: Trigger entity (button or proxy)
+      selector: { entity: { domain: input_button } }
+    bag_meter:
+      name: Bag utility meter sensor
+      selector: { entity: { domain: sensor } }
+    started_now:
+      name: Input datetime – bag started (current)
+      selector: { entity: { domain: input_datetime } }
+    started_prev:
+      name: Input datetime – bag started (previous)
+      selector: { entity: { domain: input_datetime } }
+
+mode: single
+trigger:
+  - platform: state
+    entity_id: !input reset_button
+action:
+  - variables:
+      prev_start: "{{ states('!input started_now') }}"
+  - service: input_datetime.set_datetime
+    target: { entity_id: !input started_prev }
+    data:
+      datetime: >
+        {% if prev_start not in ['unknown','unavailable',''] %}
+          {{ prev_start }}
+        {% else %}
+          {{ now().timestamp() | timestamp_local }}
+        {% endif %}
+  - service: utility_meter.reset
+    target: { entity_id: !input bag_meter }
+  - service: input_datetime.set_datetime
+    target: { entity_id: !input started_now }
+    data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
