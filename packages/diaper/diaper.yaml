@@ -2,6 +2,12 @@
 # Diaper tracking package (shareable, robust)
 # =========================
 
+# --- Recorder ---
+recorder:
+  include:
+    entities:
+      - sensor.diaper_daily
+
 # --- Helpers / Inputs ---
 input_number:
   diaper_bag_capacity:
