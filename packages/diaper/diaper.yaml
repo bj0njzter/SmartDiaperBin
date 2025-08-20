@@ -214,13 +214,6 @@ script:
         data:
           keep_days: 0
           repack: true
-          apply_to_entities:
-            - sensor.diaper_bag
-            - sensor.diaper_daily
-            - sensor.diaper_weekly
-            - sensor.diaper_monthly
-            - sensor.diaper_tod
-            - counter.diaper_count
       - service: input_text.set_value
         target: { entity_id: input_text.diaper_recent_times }
         data: { value: "" }
