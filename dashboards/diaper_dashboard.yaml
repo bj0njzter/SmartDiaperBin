@@ -71,15 +71,13 @@ views:
       - type: markdown
         title: Last 5 diapers
         content: |
-          {% set raw = states('input_text.diaper_recent_times') or '' %}
-          {% set arr = raw.split('|') if raw else [] %}
-
+          {% set raw = states('input_text.diaper_recent_times') %}
+          {% set arr = [] if raw in ['unknown','unavailable',''] else raw.split('|') %}
           | # | Timestamp |
           | -:| --- |
-          {% for t in arr if t not in ['', 'unknown', 'unavailable', None] %}
+          {% for t in arr %}
           | {{ loop.index }} | {{ as_datetime(t).astimezone().strftime('%Y-%m-%d %H:%M') }} |
           {% endfor %}
-
-          {% if not arr %}
+          {% if arr | length == 0 %}
           _No registrations yet — close the lid to add one._
           {% endif %}
