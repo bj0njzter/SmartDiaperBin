@@ -258,7 +258,7 @@ script:
           in_week: "{{ popped_dt is not none and as_timestamp(popped_dt) >= week_start }}"
           in_month: "{{ popped_dt is not none and as_timestamp(popped_dt) >= month_start }}"
           in_bag: "{{ popped_dt is not none and bag_start is not none and as_timestamp(popped_dt) >= as_timestamp(bag_start) }}"
-          popped_hour: "{{ (popped_dt.hour if popped_dt is not none else 0) | int }}"
+          popped_hour: "{{ (as_datetime(popped_dt).hour if popped_dt is not none else 0) | int }}"
           popped_bucket: >
             {% set h = popped_hour | int %}
             {% if 0 <= h < 6 %}Night
