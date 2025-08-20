@@ -46,9 +46,11 @@ input_text:
   diaper_recent_times:
     name: Diaper Recent Times (last 5 ISO)
     max: 255
+    initial: ""
   diaper_daily_last3:
     name: Diaper Daily Last 3 (completed days)
     max: 64
+    initial: ""
 
 input_datetime:
   last_diaper_time:
