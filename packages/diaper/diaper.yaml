@@ -169,12 +169,15 @@ template:
         unit_of_measurement: d
         icon: mdi:calendar-clock
         state: >
-          {% set rate = states('sensor.diapers_per_day_last_3_completed_days_avg')|float(0) %}
-          {% if rate == 0 %} unknown
+          {% set avg = states('sensor.diapers_per_day_last_3_completed_days_avg')|float(0) %}
+          {% if avg > 0 %}
+            {% set rate = avg %}
           {% else %}
-            {% set remain = states('sensor.diaper_bag_remaining')|float(0) %}
-            {{ (remain / rate) | round(2) }}
+            {% set last = state_attr('sensor.diaper_daily','last_period')|float(0) %}
+            {% set rate = last if last > 0 else 0.01 %}
           {% endif %}
+          {% set remain = states('sensor.diaper_bag_remaining')|float(0) %}
+          {{ (remain / rate) | round(2) }}
 
       - name: Diaper Next Full ETA
         unique_id: diaper_next_full_eta
