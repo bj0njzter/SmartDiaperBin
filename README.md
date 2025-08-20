@@ -10,7 +10,7 @@ Track diaper disposals per bag, day, week, and month, undo the last entry, keep 
 - **Last 5** timestamps table
 - **Undo Last** with safe `utility_meter.calibrate`
 - **Auto‑calibrate capacity** (opt‑in) when a bag is emptied
-- Voice‑command scripts
+- Voice‑command scripts, including a multi‑language diaper report
 - Clean Slate script for quick testing resets
 - Ready‑to‑import **Blueprints**
 - Lovelace dashboard in English
@@ -29,8 +29,11 @@ Track diaper disposals per bag, day, week, and month, undo the last entry, keep 
 - `input_text.diaper_recent_times` – last 5 ISO timestamps (newest first).
 - `input_number.diaper_bag_capacity` – capacity (auto‑increases on empty if enabled).
 
-## Voice
-Expose scripts under `script:` via Nabu Casa → Google Assistant, or call them from Assist/Shortcuts.
+## Voice / Google Assistant
+1. Link Home Assistant to Google Assistant (Settings → Home Assistant Cloud → Google Assistant) and sync.
+2. Expose `script.diaper_report` in the Google Assistant section. It appears as a scene.
+3. Say “Hey Google, activate Diaper Report” to hear the diaper count and last change. Create a routine in the Google Home app for a friendlier phrase if desired.
+4. The script speaks through `media_player.living_room` by default and uses the server's language. Pass `media_player` or `language` fields when calling the script to choose a different speaker or language. English (`en`) and Norwegian (`no`) messages are included; extend `packages/diaper/diaper.yaml` with more if needed.
 
 ## Undo
 Use `script.diaper_undo_last` to reverse the most recent registration. It decrements counters only if the original timestamp falls within the current periods and bag.
