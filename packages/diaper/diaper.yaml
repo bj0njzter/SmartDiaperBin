@@ -189,6 +189,46 @@ template:
 
 # --- Scripts ---
 script:
+  diaper_report:
+    alias: Diaper Report
+    mode: single
+    fields:
+      language:
+        description: ISO language code (en, no, etc.)
+      media_player:
+        description: Media player entity for speech
+        example: media_player.living_room
+    sequence:
+      - variables:
+          lang: "{{ language | default(hass.config.language) }}"
+          player: "{{ media_player | default('media_player.living_room') }}"
+          count: "{{ states('sensor.diaper_bag') }}"
+          last: >-
+            {% set t = states('input_datetime.last_diaper_time') %}
+            {% if t in ['unknown','unavailable',''] %}
+              unknown
+            {% else %}
+              {{ as_datetime(t) | relative_time }}
+            {% endif %}
+          messages:
+            en: >-
+              {% if last == 'unknown' %}
+                There are {{ count }} diapers in the bin. The last diaper time is unknown.
+              {% else %}
+                There are {{ count }} diapers in the bin. The last diaper was added {{ last }} ago.
+              {% endif %}
+            "no": >-
+              {% if last == 'unknown' %}
+                Det er {{ count }} bleier i bøtta. Den siste bleietiden er ukjent.
+              {% else %}
+                Det er {{ count }} bleier i bøtta. Den siste bleien ble lagt til for {{ last }} siden.
+              {% endif %}
+      - service: tts.google_translate_say
+        data:
+          entity_id: "{{ player }}"
+          language: "{{ lang }}"
+          message: "{{ messages[lang] if lang in messages else messages['en'] }}"
+
   diaper_clean_slate_now:
     alias: Diaper - Clean Slate (now)
     mode: single
@@ -214,6 +254,13 @@ script:
         data:
           keep_days: 0
           repack: true
+          apply_to_entities:
+            - sensor.diaper_bag
+            - sensor.diaper_daily
+            - sensor.diaper_weekly
+            - sensor.diaper_monthly
+            - sensor.diaper_tod
+            - counter.diaper_count
       - service: input_text.set_value
         target: { entity_id: input_text.diaper_recent_times }
         data: { value: "" }
