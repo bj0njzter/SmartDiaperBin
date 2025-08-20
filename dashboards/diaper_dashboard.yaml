@@ -62,11 +62,12 @@ views:
 
       - type: statistics-graph
         title: Diapers per day (30 days)
-        days_to_show: 30
-        chart_type: bar
-        stat_types: [ max ]
         entities:
           - sensor.diaper_daily
+        stat_types: [sum]
+        period: day
+        days_to_show: 30
+        chart_type: bar
 
       - type: markdown
         title: Last 5 diapers
