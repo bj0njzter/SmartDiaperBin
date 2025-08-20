@@ -45,8 +45,8 @@ action:
     target: { entity_id: !input last_time }
     data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
   - variables:
-      raw: "{{ states('!input recent_times') or '' }}"
-      arr: "{{ (raw.split('|') if raw else []) }}"
+      raw: "{{ states('!input recent_times') }}"
+      arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
       updated: >
         {% set new = [now_iso] + arr %}
         {% set trimmed = new[:5] %}
