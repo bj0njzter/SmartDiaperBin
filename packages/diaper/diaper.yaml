@@ -205,7 +205,7 @@ script:
           count: "{{ states('sensor.diaper_bag') }}"
           last: >-
             {% set t = states('input_datetime.last_diaper_time') %}
-            {% if t in ['unknown','unavailable',''] %}
+            {% if t in ['unknown','unavailable','', '1970-01-01 00:00:00'] %}
               unknown
             {% else %}
               {{ as_datetime(t) | relative_time }}
@@ -267,6 +267,9 @@ script:
       - service: input_text.set_value
         target: { entity_id: input_text.diaper_daily_last3 }
         data: { value: "" }
+      - service: input_datetime.set_datetime
+        target: { entity_id: input_datetime.last_diaper_time }
+        data: { datetime: "1970-01-01 00:00:00" }
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.diaper_bag_started_prev }
         data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
