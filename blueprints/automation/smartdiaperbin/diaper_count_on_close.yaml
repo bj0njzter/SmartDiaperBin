@@ -23,6 +23,8 @@ mode: single
 trigger:
   - platform: state
     entity_id: !input contact_sensor
+    to: 'off'
+    for: '00:00:02'
 condition:
   - condition: template
     value_template: "{{ trigger.to_state is not none and trigger.to_state.state in ['off','closed'] }}"
@@ -45,7 +47,7 @@ action:
     target: { entity_id: !input last_time }
     data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
   - variables:
-      raw: "{{ states('!input recent_times') }}"
+      raw: "{{ states('!input recent_times') | string }}"
       arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
       updated: >
         {% set new = [now_iso] + arr %}

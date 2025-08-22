@@ -148,19 +148,19 @@ template:
         unique_id: diapers_per_day_last_3_completed_days_avg
         unit_of_measurement: diapers/day
         state: >
-          {% set raw = states('input_text.diaper_daily_last3') %}
+          {% set raw = states('input_text.diaper_daily_last3') | string %}
           {% set arr = [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) %}
-          {% if arr | length == 0 %} 0
+          {% if arr | length == 0 %} unknown
           {% else %} {{ (arr | sum / (arr | length)) | round(2) }} {% endif %}
 
       - name: Diaper Last 5 Times
         unique_id: diaper_last_5_times
         state: >
-          {% set raw = states('input_text.diaper_recent_times') %}
+          {% set raw = states('input_text.diaper_recent_times') | string %}
           {% if raw in ['unknown','unavailable',''] %}0{% else %}{{ (raw.split('|') | count) }}{% endif %}
         attributes:
           recent: >
-            {% set raw = states('input_text.diaper_recent_times') %}
+            {% set raw = states('input_text.diaper_recent_times') | string %}
             {% set arr = [] if raw in ['unknown','unavailable',''] else raw.split('|') %}
             {{ arr }}
 
@@ -282,7 +282,7 @@ script:
     mode: single
     sequence:
       - variables:
-          raw: "{{ states('input_text.diaper_recent_times') }}"
+          raw: "{{ states('input_text.diaper_recent_times') | string }}"
           arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
       - condition: template
         value_template: "{{ arr | length > 0 }}"
@@ -404,7 +404,7 @@ automation:
         target: { entity_id: input_datetime.last_diaper_time }
         data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
       - variables:
-          raw: "{{ states('input_text.diaper_recent_times') }}"
+          raw: "{{ states('input_text.diaper_recent_times') | string }}"
           arr: "{{ [] if raw in ['unknown','unavailable',''] else raw.split('|') }}"
           updated: >
             {% set new = [now_iso] + arr %}
@@ -474,7 +474,7 @@ automation:
     action:
       - variables:
           yest: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
-          raw: "{{ states('input_text.diaper_daily_last3') }}"
+          raw: "{{ states('input_text.diaper_daily_last3') | string }}"
           arr: "{{ [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) }}"
           updated: >
             {% set new = [yest] + arr %}
