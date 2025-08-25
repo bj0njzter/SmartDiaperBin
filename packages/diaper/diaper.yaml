@@ -471,27 +471,32 @@ automation:
       - service: utility_meter.reset
         target: { entity_id: sensor.diaper_bag }
       - wait_template: "{{ state_attr('sensor.diaper_bag','last_period') is not none }}"
-        timeout: "00:00:05"
+        timeout: "00:00:20"
       - variables:
-          finished_count: "{{ state_attr('sensor.diaper_bag','last_period') | int(0) }}"
-          manual_cap: "{{ states('input_number.diaper_bag_capacity') | int(0) }}"
-          auto_on: "{{ is_state('input_boolean.diaper_auto_calibrate_capacity','on') }}"
-          new_cap: >
-            {% if auto_on and finished_count > manual_cap %}
-              {{ finished_count }}
-            {% else %}
-              {{ manual_cap }}
-            {% endif %}
+          finished_count: "{{ state_attr('sensor.diaper_bag','last_period') }}"
       - choose:
-          - conditions: "{{ auto_on and (new_cap | int) > (manual_cap | int) }}"
+          - conditions: "{{ finished_count is not none }}"
             sequence:
-              - service: input_number.set_value
-                target: { entity_id: input_number.diaper_bag_capacity }
-                data: { value: "{{ new_cap }}" }
-              - service: persistent_notification.create
-                data:
-                  title: "Diaper: Capacity auto-calibrated"
-                  message: "Increased capacity from {{ manual_cap }} to {{ new_cap }} based on last bag ({{ finished_count }})."
+              - variables:
+                  finished_count: "{{ finished_count | int(0) }}"
+                  manual_cap: "{{ states('input_number.diaper_bag_capacity') | int(0) }}"
+                  auto_on: "{{ is_state('input_boolean.diaper_auto_calibrate_capacity','on') }}"
+                  new_cap: >
+                    {% if auto_on and finished_count > manual_cap %}
+                      {{ finished_count }}
+                    {% else %}
+                      {{ manual_cap }}
+                    {% endif %}
+              - choose:
+                  - conditions: "{{ auto_on and (new_cap | int) > (manual_cap | int) }}"
+                    sequence:
+                      - service: input_number.set_value
+                        target: { entity_id: input_number.diaper_bag_capacity }
+                        data: { value: "{{ new_cap }}" }
+                      - service: persistent_notification.create
+                        data:
+                          title: "Diaper: Capacity auto-calibrated"
+                          message: "Increased capacity from {{ manual_cap }} to {{ new_cap }} based on last bag ({{ finished_count }})."
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.diaper_bag_started }
         data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
