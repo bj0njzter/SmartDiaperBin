@@ -81,7 +81,7 @@ views:
       - type: markdown
         title: Last 5 diapers
         content: |
-          {% set raw = states('input_text.diaper_recent_times') %}
+          {% set raw = states('input_text.diaper_recent_times') | string %}
           {% set arr = [] if raw in ['unknown','unavailable',''] else raw.split('|') %}
           | # | Timestamp |
           | -:| --- |
