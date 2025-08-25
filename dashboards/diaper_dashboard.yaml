@@ -20,7 +20,7 @@ views:
           - entity: sensor.diaper_bag_remaining
             name: Remaining in bag
           - entity: input_number.diaper_bag_capacity
-            name: Capacity (pcs)
+            name: Capacity (items)
           - entity: input_datetime.last_diaper_time
             name: Last registered
           - entity: sensor.diapers_per_day_last_3_completed_days_avg
@@ -70,7 +70,7 @@ views:
             name: Evening
 
       - type: statistics-graph
-        title: Diapers per day (30 days)
+        title: Items per day (30 days)
         entities:
           - sensor.diaper_daily
         stat_types: [max]

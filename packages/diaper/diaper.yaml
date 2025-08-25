@@ -15,7 +15,7 @@ input_number:
     min: 5
     max: 100
     step: 1
-    unit_of_measurement: diapers
+    unit_of_measurement: items
     initial: 22
     icon: mdi:trash-can
     mode: box
@@ -118,20 +118,20 @@ template:
   - sensor:
       - name: Diaper Total
         unique_id: diaper_total
-        unit_of_measurement: diapers
+        unit_of_measurement: items
         state_class: total_increasing
         state: "{{ states('counter.diaper_count') | int(0) }}"
 
       - name: Diaper Bag Used
         unique_id: diaper_bag_used
-        unit_of_measurement: diapers
+        unit_of_measurement: items
         state: >
           {% set v = states('sensor.diaper_bag') %}
           {% if v in ['unknown','unavailable',''] %} 0 {% else %} {{ v|int(0) }} {% endif %}
 
       - name: Diaper Bag Remaining
         unique_id: diaper_bag_remaining
-        unit_of_measurement: diapers
+        unit_of_measurement: items
         state: >
           {% set cap = states('input_number.diaper_bag_capacity')|int(22) %}
           {% set used = states('sensor.diaper_bag_used')|int(0) %}
@@ -148,13 +148,13 @@ template:
 
       - name: Diapers Yesterday
         unique_id: diapers_yesterday
-        unit_of_measurement: diapers
+        unit_of_measurement: items
         state_class: measurement
         state: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
 
       - name: Diapers per Day (Last 3 Completed Days Avg)
         unique_id: diapers_per_day_last_3_completed_days_avg
-        unit_of_measurement: diapers/day
+        unit_of_measurement: items/day
         state: >
           {% set raw = states('input_text.diaper_daily_last3') %}
           {% set arr = [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) %}
