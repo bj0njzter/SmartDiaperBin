@@ -9,8 +9,10 @@ views:
         entity: sensor.diaper_fill_percent
         min: 0
         max: 100
-        severity: { green: 0, yellow: 70, red: 90 }
-
+        severity:
+          green: 0
+          yellow: 70
+          red: 90
       - type: entities
         title: Now
         show_header_toggle: false
@@ -31,13 +33,6 @@ views:
             name: Empty bag (button)
           - entity: input_boolean.diaper_auto_calibrate_capacity
             name: Auto-calibrate capacity
-
-      - type: state-history
-        title: Bin Activity (24h)
-        entities:
-          - binary_sensor.bleiebotte_contact
-        hours_to_show: 24
-
       - type: entities
         title: Totals
         show_header_toggle: false
@@ -52,7 +47,6 @@ views:
             name: This month
           - entity: counter.diaper_count
             name: Lifetime total
-
       - type: entities
         title: Time-of-day (this month)
         show_header_toggle: false
@@ -65,26 +59,41 @@ views:
             name: Afternoon
           - entity: sensor.diaper_tod_evening
             name: Evening
-
-      - type: statistics-graph
+      - chart_type: bar
+        period: day
+        type: statistics-graph
         title: Items per day (30 days)
         entities:
           - sensor.diaper_daily
-        stat_types: [max]
-        period: day
-        days_to_show: 30
-        chart_type: bar
-
+        days_to_show: 14
+        stat_types:
+          - state
       - type: markdown
         title: Last 5 diapers
-        content: |
+        content: >
           {% set raw = states('input_text.diaper_recent_times') | string %}
-          {% set arr = [] if raw in ['unknown','unavailable',''] else raw.split('|') %}
+
+          {% set arr = [] if raw in ['unknown','unavailable',''] else
+          raw.split('|') %}
+
           | # | Timestamp |
+
           | -:| --- |
+
           {% for t in arr %}
-          | {{ loop.index }} | {{ as_datetime(t).astimezone().strftime('%Y-%m-%d %H:%M') }} |
+
+          | {{ loop.index }} | {{ as_datetime(t).astimezone().strftime('%Y-%m-%d
+          %H:%M') }} |
+
           {% endfor %}
+
           {% if arr | length == 0 %}
+
           _No registrations yet — close the lid to add one._
+
           {% endif %}
+      - type: history-graph
+        entities:
+          - entity: binary_sensor.bleiebotte_contact
+        hours_to_show: 12
+        title: Diaper bin activity
