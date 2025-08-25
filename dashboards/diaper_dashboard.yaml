@@ -33,6 +33,15 @@ views:
             name: Auto-calibrate capacity
 
       - type: entities
+        title: Bin Activity
+        show_header_toggle: false
+        entities:
+          - entity: input_datetime.diaper_bin_last_opened
+            name: Last opened
+          - entity: input_datetime.diaper_bin_last_closed
+            name: Last closed
+
+      - type: entities
         title: Totals
         show_header_toggle: false
         entities:
