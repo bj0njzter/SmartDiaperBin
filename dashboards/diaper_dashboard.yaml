@@ -32,14 +32,11 @@ views:
           - entity: input_boolean.diaper_auto_calibrate_capacity
             name: Auto-calibrate capacity
 
-      - type: entities
-        title: Bin Activity
-        show_header_toggle: false
+      - type: state-history
+        title: Bin Activity (24h)
         entities:
-          - entity: input_datetime.diaper_bin_last_opened
-            name: Last opened
-          - entity: input_datetime.diaper_bin_last_closed
-            name: Last closed
+          - binary_sensor.bleiebotte_contact
+        hours_to_show: 24
 
       - type: entities
         title: Totals
