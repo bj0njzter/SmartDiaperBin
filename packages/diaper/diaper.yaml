@@ -510,8 +510,8 @@ automation:
     action:
       - variables:
           yest: "{{ state_attr('sensor.diaper_daily','last_period') | int(0) }}"
-          raw: "{{ states('input_text.diaper_daily_last3') | string }}"
-          arr: "{{ [] if raw in ['unknown','unavailable',''] else (raw.split('|') | map('int') | list) }}"
+          raw: "{{ states('input_text.diaper_daily_last3') | default('', true) }}"
+          arr: "{{ [] if raw in ['unknown','unavailable',''] else ((raw | string).split('|') | map('int') | list) }}"
           updated: >
             {% set new = [yest] + arr %}
             {% set trimmed = new[:3] %}
