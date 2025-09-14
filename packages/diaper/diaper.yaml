@@ -423,15 +423,15 @@ automation:
             {% set new = [now_iso] + arr %}
             {% set trimmed = new[:5] %}
             {{ trimmed | join('|') }}
-        - service: input_text.set_value
-          target: { entity_id: input_text.diaper_recent_times }
-          data: { value: "{{ updated }}" }
-        - service: logbook.log
-          data:
-            name: "Diaper disposed"
-            message: "Added {{ now_iso }}"
-            entity_id: input_text.diaper_recent_times
-        - delay: '00:01:00'
+      - service: input_text.set_value
+        target: { entity_id: input_text.diaper_recent_times }
+        data: { value: "{{ updated }}" }
+      - service: logbook.log
+        data:
+          name: "Diaper disposed"
+          message: "Added {{ now_iso }}"
+          entity_id: input_text.diaper_recent_times
+      - delay: '00:01:00'
 
   - alias: Diaper - Record Bin Opened
     id: diaper_record_bin_opened
