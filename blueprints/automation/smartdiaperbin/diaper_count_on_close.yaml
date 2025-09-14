@@ -56,3 +56,4 @@ action:
   - service: input_text.set_value
     target: { entity_id: !input recent_times }
     data: { value: "{{ updated }}" }
+  - delay: '00:01:00'

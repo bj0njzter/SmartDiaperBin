@@ -16,7 +16,6 @@ input_number:
     max: 100
     step: 1
     unit_of_measurement: items
-    initial: 22
     icon: mdi:trash-can
     mode: box
 
@@ -52,11 +51,9 @@ input_text:
   diaper_recent_times:
     name: Diaper Recent Times (last 5 ISO)
     max: 255
-    initial: ""
   diaper_daily_last3:
     name: Diaper Daily Last 3 (completed days)
     max: 64
-    initial: ""
 
 input_datetime:
   last_diaper_time:
@@ -426,14 +423,15 @@ automation:
             {% set new = [now_iso] + arr %}
             {% set trimmed = new[:5] %}
             {{ trimmed | join('|') }}
-      - service: input_text.set_value
-        target: { entity_id: input_text.diaper_recent_times }
-        data: { value: "{{ updated }}" }
-      - service: logbook.log
-        data:
-          name: "Diaper disposed"
-          message: "Added {{ now_iso }}"
-          entity_id: input_text.diaper_recent_times
+        - service: input_text.set_value
+          target: { entity_id: input_text.diaper_recent_times }
+          data: { value: "{{ updated }}" }
+        - service: logbook.log
+          data:
+            name: "Diaper disposed"
+            message: "Added {{ now_iso }}"
+            entity_id: input_text.diaper_recent_times
+        - delay: '00:01:00'
 
   - alias: Diaper - Record Bin Opened
     id: diaper_record_bin_opened
