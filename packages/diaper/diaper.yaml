@@ -390,11 +390,12 @@ automation:
     trigger:
       - platform: state
         entity_id: binary_sensor.bleiebotte_contact   # adjust to your sensor id
-    condition:
-      - condition: template
-        value_template: "{{ trigger.to_state is not none and trigger.to_state.state in ['off','closed'] }}"
-      - condition: template
-        value_template: "{{ trigger.from_state is not none and trigger.from_state.state in ['on','open'] }}"
+        from: 'on'
+        to: 'off'
+      - platform: state
+        entity_id: binary_sensor.bleiebotte_contact   # adjust to your sensor id
+        from: 'open'
+        to: 'closed'
     action:
       - variables:
           now_iso: "{{ now().isoformat() }}"
@@ -432,22 +433,6 @@ automation:
           message: "Added {{ now_iso }}"
           entity_id: input_text.diaper_recent_times
       - delay: '00:01:00'
-
-  - alias: Diaper - Record Bin Opened
-    id: diaper_record_bin_opened
-    mode: single
-    trigger:
-      - platform: state
-        entity_id: binary_sensor.bleiebotte_contact   # adjust to your sensor id
-        to: 'on'
-      - platform: state
-        entity_id: binary_sensor.bleiebotte_contact   # adjust to your sensor id
-        to: 'open'
-    action:
-      - service: input_datetime.set_datetime
-        target: { entity_id: input_datetime.diaper_bin_last_opened }
-        data: { datetime: "{{ now().timestamp() | timestamp_local }}" }
-
   - alias: Diaper - Reset Bag Counter on Take-Out
     id: diaper_reset_bag_counter_on_takeout
     mode: single
