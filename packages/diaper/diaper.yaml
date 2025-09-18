@@ -42,6 +42,11 @@ input_boolean:
     icon: mdi:scale-balance
     initial: true
 
+  diaper_counting_paused:
+    name: Diaper Counting Paused
+    icon: mdi:pause-circle
+    initial: false
+
 input_button:
   diaper_bag_taken_out:
     name: Diaper Bag Taken Out
@@ -86,6 +91,12 @@ counter:
     name: Diaper Count (lifetime)
     step: 1
     restore: true
+
+# --- Timers ---
+timer:
+  diaper_pause_counting:
+    name: Diaper Pause Counting
+    duration: '00:02:00'
 
 # --- Utility meters (period counters driven by lifetime total) ---
 utility_meter:
@@ -395,6 +406,9 @@ automation:
         value_template: "{{ trigger.to_state is not none and trigger.to_state.state in ['off','closed'] }}"
       - condition: template
         value_template: "{{ trigger.from_state is not none and trigger.from_state.state in ['on','open'] }}"
+      - condition: state
+        entity_id: input_boolean.diaper_counting_paused
+        state: 'off'
     action:
       - variables:
           now_iso: "{{ now().isoformat() }}"
@@ -457,6 +471,10 @@ automation:
     action:
       - variables:
           prev_start: "{{ states('input_datetime.diaper_bag_started') }}"
+      - service: input_boolean.turn_on
+        target: { entity_id: input_boolean.diaper_counting_paused }
+      - service: timer.start
+        target: { entity_id: timer.diaper_pause_counting }
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.diaper_bag_started_prev }
         data:
@@ -517,3 +535,15 @@ automation:
       - service: input_text.set_value
         target: { entity_id: input_text.diaper_daily_last3 }
         data: { value: "{{ updated }}" }
+
+  - alias: Diaper - Resume Counting After Pause
+    id: diaper_resume_counting_after_pause
+    mode: single
+    trigger:
+      - platform: event
+        event_type: timer.finished
+        event_data:
+          entity_id: timer.diaper_pause_counting
+    action:
+      - service: input_boolean.turn_off
+        target: { entity_id: input_boolean.diaper_counting_paused }
