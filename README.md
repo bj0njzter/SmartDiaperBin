@@ -9,6 +9,7 @@ Track diaper disposals per bag, day, week, and month, undo the last entry, keep 
 - **Time‑of‑day** (Night/Morning/Afternoon/Evening) monthly totals
 - **Last 5** timestamps table
 - **Undo Last** with safe `utility_meter.calibrate`
+- **Pause counting** automatically while swapping bags via the take-out button
 - **Auto‑calibrate capacity** (opt‑in) when a bag is emptied
 - Voice‑command scripts, including a multi‑language diaper report
 - Clean Slate script for quick testing resets
@@ -28,6 +29,7 @@ Track diaper disposals per bag, day, week, and month, undo the last entry, keep 
 - `input_datetime.last_diaper_time` – last disposal timestamp.
 - `input_text.diaper_recent_times` – last 5 ISO timestamps (newest first).
 - `input_number.diaper_bag_capacity` – capacity (auto‑increases on empty if enabled).
+- `input_boolean.diaper_counting_paused` / `timer.diaper_pause_counting` – helper flag and timer that block counting for two minutes while active.
 
 ## Voice / Google Assistant
 1. Link Home Assistant to Google Assistant (Settings → Home Assistant Cloud → Google Assistant) and sync.
