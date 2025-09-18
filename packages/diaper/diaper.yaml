@@ -471,10 +471,6 @@ automation:
     action:
       - variables:
           prev_start: "{{ states('input_datetime.diaper_bag_started') }}"
-      - service: input_boolean.turn_on
-        target: { entity_id: input_boolean.diaper_counting_paused }
-      - service: timer.start
-        target: { entity_id: timer.diaper_pause_counting }
       - service: input_datetime.set_datetime
         target: { entity_id: input_datetime.diaper_bag_started_prev }
         data:
@@ -484,6 +480,10 @@ automation:
             {% else %}
               {{ now().timestamp() | timestamp_local }}
             {% endif %}
+      - service: input_boolean.turn_on
+        target: { entity_id: input_boolean.diaper_counting_paused }
+      - service: timer.start
+        target: { entity_id: timer.diaper_pause_counting }
       - service: utility_meter.reset
         target: { entity_id: sensor.diaper_bag }
       - wait_template: "{{ state_attr('sensor.diaper_bag','last_period') is not none }}"
